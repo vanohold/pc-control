@@ -1,0 +1,29 @@
+# Секреты и локальные настройки — НИКОГДА не коммитить
+pc_control_token.txt
+*token*.txt
+*.token
+*.pem
+*.key
+.env
+
+# Логи
+*.log
+server_runtime.out.log
+server_runtime.err.log
+
+# Бэкапы и снапшоты
+*.bak
+*.bak_*
+*.zip
+
+# Python / виртуальное окружение
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Редакторы / ОС
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
