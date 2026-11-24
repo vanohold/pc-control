@@ -1,0 +1,9 @@
+Flask>=3.1
+psutil>=7.0
+pycaw>=20260927
+pywin32>=312
+winrt-runtime>=4.2
+winrt-Windows.Foundation>=4.0
+winrt-Windows.Foundation.Collections>=4.0
+winrt-Windows.Media.Control>=4.0
+winrt-Windows.Storage.Streams>=4.0

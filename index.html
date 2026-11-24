@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>PC CONTROL</title>
+  <style>
+    :root { color-scheme: dark; }
+    * { box-sizing: border-box; }
+    html { min-height: 100%; background:#130b22; }
+    body { background:#130b22; color:#fff8ff; font-family:Arial,sans-serif; text-align:center; padding:25px; margin:0; }
+    .panel { background:#24133b; padding:20px; margin:15px auto; border-radius:18px; max-width:400px; border:1px solid rgba(255,146,70,.3); }
+    button { background:#8e39b6; color:white; border:0; border-radius:12px; padding:13px; margin:5px; font-size:16px; cursor:pointer; touch-action:manipulation; }
+    button:disabled { opacity:.55; }
+    .number { font-size:30px; color:#ffae58; }
+    input[type=range] { width:90%; accent-color:#ff61ae; }
+    #cover { width:170px; height:170px; object-fit:cover; border-radius:16px; margin:10px auto 14px; display:none; box-shadow:0 0 17px rgba(255,85,184,.32); border:1px solid rgba(255,173,85,.48); }
+    .track-title { font-size:20px; font-weight:bold; color:#ff9ccf; margin-top:6px; overflow-wrap:anywhere; }
+    .track-artist { font-size:15px; color:#dbc3ee; margin-top:6px; overflow-wrap:anywhere; }
+    .track-state { font-size:14px; color:#ffb66d; margin-top:8px; }
+    .player-controls { display:flex; align-items:center; justify-content:center; gap:16px; margin-top:18px; }
+    .ctrl { width:58px; height:58px; border-radius:50%; background:#552775; margin:0; padding:0; display:flex; align-items:center; justify-content:center; transition:transform .08s ease,background .15s ease; }
+    .ctrl svg { width:26px; height:26px; fill:#fff0ff; }
+    .ctrl.play { width:72px; height:72px; background:#ff8a4c; box-shadow:0 0 17px rgba(255,103,164,.34); }
+    .ctrl.play svg { width:32px; height:32px; fill:white; }
+    .ctrl:active { transform:scale(.93); }
+    .token-box { max-width:440px; margin:12px auto; }
+    .token-box input { width:min(90%,360px); box-sizing:border-box; padding:11px; border-radius:8px; border:1px solid #75458d; background:#24133b; color:white; }
+    .hint { color:#b9a2ce; font-size:13px; line-height:1.5; }
+    .mic-button { width:96px; height:96px; border-radius:50%; padding:0; display:flex; align-items:center; justify-content:center; margin:12px auto; background:#e34e9a; box-shadow:0 0 18px rgba(255,87,177,.3); transition:transform .08s ease; }
+    .mic-button svg { width:42px; height:42px; fill:white; }
+    .mic-button:active { transform:scale(.95); }
+    .mic-status { font-size:16px; color:#65d6ff; margin:12px 0 4px; }
+    .connection-indicator { display:none; }
+
+    /* On iPhone 13 landscape (844 x 390 CSS px), put controls in one viewport row. */
+    @media screen and (orientation: landscape) and (max-height: 500px) {
+      html, body { width:100%; height:100%; min-height:0; overflow:hidden; }
+      body {
+        padding: max(7px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(7px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+        display:flex;
+        flex-direction:column;
+        align-items:stretch;
+      }
+      body > h1 { flex:0 0 auto; font-size:clamp(16px, 4vh, 20px); line-height:1.1; margin:0 0 7px; }
+      .token-box {
+        display:flex;
+        flex:0 0 auto;
+        gap:6px;
+        align-items:center;
+        justify-content:center;
+        max-width:none;
+        margin:0 0 8px;
+      }
+      .token-box input { width:min(45vw, 250px); padding:7px 9px; font-size:13px; }
+      .token-box button { margin:0; padding:7px 10px; font-size:13px; }
+      .token-box .hint { display:none; }
+      body > .panel {
+        flex:1 1 0;
+        min-width:0;
+        min-height:0;
+        width:auto;
+        max-width:none;
+        margin:0 4px;
+        padding:clamp(8px, 2vh, 14px);
+        border-radius:14px;
+        overflow:hidden;
+      }
+      body {
+        display:grid;
+        grid-template-rows:auto minmax(0, 1fr);
+        grid-template-columns: 1.25fr .8fr 1fr;
+        gap:8px;
+      }
+      body > h1 { grid-column:1 / -1; grid-row:1; }
+      .connection-indicator {
+        display:block;
+        position:absolute;
+        top:max(8px, env(safe-area-inset-top));
+        right:max(14px, env(safe-area-inset-right));
+        max-width:42vw;
+        padding:6px 10px;
+        border:1px solid rgba(255,146,70,.42);
+        border-radius:999px;
+        background:rgba(36,19,59,.94);
+        color:#ffb66d;
+        font-size:clamp(10px, 2.8vh, 13px);
+        line-height:1.15;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+        z-index:5;
+      }
+      .connection-indicator.is-online { color:#ffd09a; border-color:rgba(255,174,88,.7); }
+      .connection-indicator.is-offline { color:#ff75a8; border-color:rgba(255,97,174,.75); }
+      .token-box { display:none; }
+      .music-panel { grid-column:1; grid-row:2; }
+      .mic-panel { grid-column:2; grid-row:2; display:flex; flex-direction:column; justify-content:center; }
+      .volume-panel { grid-column:3; grid-row:2; display:flex; flex-direction:column; justify-content:center; }
+      .monitor-panel { display:none !important; }
+      #volumeSlider { display:block; }
+      .panel h2 { font-size:clamp(14px, 3.8vh, 18px); margin:0 0 6px; }
+      #cover { width:clamp(90px, 28vh, 132px); height:clamp(90px, 28vh, 132px); margin:2px auto 5px; border-radius:12px; }
+      .track-title { font-size:clamp(15px, 4.4vh, 22px); line-height:1.12; margin-top:2px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+      .track-artist { font-size:clamp(12px, 3.2vh, 16px); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .track-state { font-size:clamp(11px, 2.8vh, 14px); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .player-controls { gap:clamp(8px, 3vw, 18px); margin-top:clamp(6px, 2vh, 11px); }
+      .ctrl { width:clamp(36px, 11vh, 48px); height:clamp(36px, 11vh, 48px); }
+      .ctrl svg { width:22px; height:22px; }
+      .ctrl.play { width:clamp(46px, 14vh, 58px); height:clamp(46px, 14vh, 58px); }
+      .ctrl.play svg { width:26px; height:26px; }
+      .mic-button { width:clamp(60px, 20vh, 86px); height:clamp(60px, 20vh, 86px); margin:clamp(6px, 2.5vh, 12px) auto 0; }
+      .mic-button svg { width:clamp(28px, 9vh, 40px); height:clamp(28px, 9vh, 40px); }
+      #volumeText { font-size:clamp(21px, 6vh, 28px); margin:4px 0; }
+      #volumeDown, #volumeUp { width:35px; height:35px; padding:0; margin:3px; font-size:20px; }
+      #volumeSlider { width:95%; margin:9px auto 0; }
+      .volume-panel p { margin:2px 0; }
+    }
+
+    @media screen and (orientation: landscape) and (max-height: 340px) {
+      body { grid-template-rows:minmax(0, 1fr); gap:6px; }
+      body > h1, .token-box { display:none; }
+      .music-panel, .mic-panel, .volume-panel { grid-row:2; }
+      .monitor-panel { display:none !important; }
+    }
+  </style>
+</head>
+<body>
+  <h1>🎮 PC CONTROL</h1>
+  <div class="connection-indicator" id="connectionIndicator">🟠 Проверяю подключение</div>
+  <div class="token-box">
+    <input id="tokenInput" type="password" autocomplete="off" placeholder="Токен сервера" aria-label="Токен сервера">
+    <button id="saveToken">Подключить</button>
+    <p class="hint">Введи токен из окна запуска сервера. Он сохранится в этом браузере.</p>
+  </div>
+
+  <div class="panel music-panel">
+    <h2>🎵 Музыка</h2>
+    <img id="cover" alt="Обложка трека">
+    <div class="track-title" id="trackTitle">Загрузка...</div>
+    <div class="track-artist" id="trackArtist"></div>
+    <div class="track-state" id="trackState"></div>
+    <div class="player-controls">
+      <button class="ctrl" data-action="previous" aria-label="Предыдущий трек"><svg viewBox="0 0 24 24"><path d="M7 6h2v12H7z"/><path d="M19 6v12L9.5 12z"/></svg></button>
+      <button class="ctrl play" data-action="play_pause" aria-label="Пауза или воспроизведение"><svg id="playIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg><svg id="pauseIcon" viewBox="0 0 24 24" style="display:none"><path d="M7 5h4v14H7zM14 5h4v14h-4z"/></svg></button>
+      <button class="ctrl" data-action="next" aria-label="Следующий трек"><svg viewBox="0 0 24 24"><path d="M15 6h2v12h-2z"/><path d="M5 6v12l9.5-6z"/></svg></button>
+    </div>
+  </div>
+
+  <div class="panel mic-panel">
+    <h2>🎤 Микрофон Discord</h2>
+    <button id="micButton" class="mic-button" aria-label="Переключить микрофон Discord">
+      <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3z"/><path d="M19 11a7 7 0 0 1-14 0H3a9 9 0 0 0 8 8.94V22h2v-2.06A9 9 0 0 0 21 11z"/></svg>
+    </button>
+  </div>
+
+  <div class="panel volume-panel">
+    <h2>🔊 Громкость компьютера</h2>
+    <div class="number" id="volumeText">Загрузка...</div>
+    <button id="volumeDown">−</button><button id="volumeUp">+</button>
+    <p><input type="range" id="volumeSlider" min="0" max="100" value="50" aria-label="Громкость"></p>
+  </div>
+  <div class="panel monitor-panel">
+    <h2>Мониторинг ПК</h2>
+    <p>CPU</p><div class="number" id="cpu">Загрузка...</div>
+    <p>RAM</p><div class="number" id="ram">Загрузка...</div>
+    <p>Использовано RAM</p><div class="number" id="ram_used">Загрузка...</div>
+    <p id="connection">Подключение...</p>
+  </div>
+
+  <script>
+    const tokenInput = document.getElementById('tokenInput');
+    tokenInput.value = localStorage.getItem('pcControlToken') || '';
+    let statusBusy = false, trackBusy = false, commandBusy = false;
+    let volumeTimer = null, coverObjectUrl = null, coverStateMessage = '', coverAbort = null, coverFailedId = '';
+
+    async function api(path, options = {}) {
+      const headers = new Headers(options.headers || {});
+      headers.set('X-PC-Control-Token', localStorage.getItem('pcControlToken') || '');
+      if (options.body) headers.set('Content-Type', 'application/json');
+      const response = await fetch(path, {...options, headers, cache:'no-store'});
+      let data = {};
+      try { data = await response.json(); } catch (_) {}
+      if (!response.ok) throw new Error(data.error || data.message || `HTTP ${response.status}`);
+      return data;
+    }
+
+    function connection(text) {
+      const main = document.getElementById('connection');
+      const indicator = document.getElementById('connectionIndicator');
+      if (main) main.textContent = text;
+      if (indicator) {
+        indicator.textContent = text;
+        indicator.classList.toggle('is-online', text.includes('ПК подключён'));
+        indicator.classList.toggle('is-offline', text.includes('Нет соединения') || text.includes('Неверный токен'));
+        indicator.title = text;
+      }
+    }
+    document.getElementById('saveToken').addEventListener('click', () => {
+      const token = tokenInput.value.trim();
+      if (!token) { connection('🔴 Введи токен сервера'); return; }
+      localStorage.setItem('pcControlToken', token);
+      connection('Подключение...'); updateStatus();
+    });
+
+    document.getElementById('micButton').addEventListener('click', async event => {
+      const button = event.currentTarget;
+      button.disabled = true;
+      try {
+        const data = await api('/discord/mute', {method:'POST'});
+        if (!data.sent || data.success === false) {
+          throw new Error(data.warning || data.detail || data.error || 'Команда не отправлена');
+        }
+        connection(data.warning ? `🟠 ${data.warning}` : '🟢 Команда микрофона отправлена');
+      } catch (error) {
+        connection(`🔴 Микрофон Discord: ${error.message}`);
+      } finally { button.disabled = false; }
+    });
+
+    function showVolume(value) { document.getElementById('volumeText').textContent = `${Math.round(Number(value))}%`; }
+    async function setVolume(value) {
+      const amount = Math.max(0, Math.min(100, Math.round(Number(value))));
+      showVolume(amount);
+      try {
+        const data = await api('/volume', {method:'POST', body:JSON.stringify({value:amount})});
+        document.getElementById('volumeSlider').value = data.volume;
+        showVolume(data.volume);
+      } catch (error) { connection(`🔴 Громкость: ${error.message}`); }
+    }
+    document.getElementById('volumeSlider').addEventListener('input', event => {
+      showVolume(event.target.value); clearTimeout(volumeTimer);
+      volumeTimer = setTimeout(() => setVolume(event.target.value), 180);
+    });
+    document.getElementById('volumeDown').addEventListener('click', () => setVolume(Number(document.getElementById('volumeSlider').value)-5));
+    document.getElementById('volumeUp').addEventListener('click', () => setVolume(Number(document.getElementById('volumeSlider').value)+5));
+
+    function setPlayIcon(playing) {
+      document.getElementById('playIcon').style.display = playing ? 'none' : 'block';
+      document.getElementById('pauseIcon').style.display = playing ? 'block' : 'none';
+    }
+    function abortCoverRequest() {
+      if (coverAbort) { coverAbort.abort(); coverAbort = null; }
+    }
+    function clearCover() {
+      abortCoverRequest();
+      const img = document.getElementById('cover');
+      img.style.display = 'none';
+      img.removeAttribute('src');
+      img.dataset.trackId = '';
+      coverFailedId = '';
+      if (coverObjectUrl) URL.revokeObjectURL(coverObjectUrl);
+      coverObjectUrl = null;
+    }
+    async function loadCover(id) {
+      abortCoverRequest();
+      const controller = new AbortController();
+      coverAbort = controller;
+      try {
+        const response = await fetch(`/cover/${encodeURIComponent(id)}`, {
+          headers:{'X-PC-Control-Token':localStorage.getItem('pcControlToken') || ''},
+          cache:'no-store',
+          signal: controller.signal
+        });
+        if (!response.ok) throw new Error('Обложка недоступна');
+        const blob = await response.blob();
+        const img = document.getElementById('cover');
+        if (controller.signal.aborted || img.dataset.trackId !== id) return;
+        if (coverObjectUrl) URL.revokeObjectURL(coverObjectUrl);
+        coverObjectUrl = URL.createObjectURL(blob);
+        img.src = coverObjectUrl;
+        img.style.display = 'block';
+        coverFailedId = '';
+        coverStateMessage = ' · обложка загружена';
+        const state = document.getElementById('trackState');
+        if (state && state.dataset.base !== undefined) state.textContent = state.dataset.base + coverStateMessage;
+      } catch (error) {
+        if (error && error.name === 'AbortError') return;
+        const img = document.getElementById('cover');
+        if (img.dataset.trackId === id) {
+          if (coverObjectUrl) URL.revokeObjectURL(coverObjectUrl);
+          coverObjectUrl = null;
+          img.style.display = 'none';
+          img.removeAttribute('src');
+          coverFailedId = id; // avoid retry loop for same track
+          coverStateMessage = ' · обложка недоступна';
+          const state = document.getElementById('trackState');
+          if (state && state.dataset.base !== undefined) state.textContent = state.dataset.base + coverStateMessage;
+        }
+      } finally {
+        if (coverAbort === controller) coverAbort = null;
+      }
+    }
+    function showTrack(track) {
+      const title = document.getElementById('trackTitle'), artist = document.getElementById('trackArtist');
+      const state = document.getElementById('trackState');
+      if (!track || track.error) {
+        title.textContent = track?.error === 'media_api_unavailable' ? 'Медиа API Windows недоступен' : 'Не удалось получить трек';
+        artist.textContent = '';
+        coverStateMessage = '';
+        if (state) { state.dataset.base = ''; state.textContent = ''; }
+        clearCover(); setPlayIcon(false); return;
+      }
+      if (!track.playing || !track.title) {
+        title.textContent = 'Ничего не играет'; artist.textContent = '';
+        coverStateMessage = '';
+        if (state) { state.dataset.base = ''; state.textContent = ''; }
+        clearCover(); setPlayIcon(false); return;
+      }
+      title.textContent = track.title; artist.textContent = track.artist || '';
+      const baseState = track.state === 'paused' ? '⏸ Пауза' : track.state === 'playing' ? '▶ Играет' : '';
+      setPlayIcon(track.state === 'playing');
+      const img = document.getElementById('cover');
+      if (track.id) {
+        if (img.dataset.trackId !== track.id) {
+          img.dataset.trackId = track.id;
+          coverFailedId = '';
+          if (coverObjectUrl) { URL.revokeObjectURL(coverObjectUrl); coverObjectUrl = null; }
+          img.removeAttribute('src');
+          img.style.display = 'none';
+          coverStateMessage = ' · запрашиваю обложку';
+          loadCover(track.id);
+        } else if (coverFailedId === track.id) {
+          coverStateMessage = ' · обложка недоступна';
+        }
+      } else {
+        clearCover();
+        coverStateMessage = ' · ID трека отсутствует';
+      }
+      if (state) { state.dataset.base = baseState; state.textContent = baseState + coverStateMessage; }
+    }
+
+    async function mediaCommand(action) {
+      if (commandBusy) return;
+      commandBusy = true; document.querySelectorAll('[data-action]').forEach(b => b.disabled = true);
+      try {
+        const data = await api(`/media/${action}`, {method:'POST'});
+        if (data.track) showTrack(data.track);
+        if (data.sent && !data.confirmed) connection('🟠 Команда отправлена, состояние не подтверждено');
+      } catch (error) { connection(`🔴 Управление музыкой: ${error.message}`); }
+      finally { commandBusy = false; document.querySelectorAll('[data-action]').forEach(b => b.disabled = false); }
+    }
+    document.querySelectorAll('[data-action]').forEach(button => button.addEventListener('click', () => mediaCommand(button.dataset.action)));
+
+    async function refreshTrack() {
+      if (trackBusy || commandBusy) return;
+      trackBusy = true;
+      try { const data = await api('/track'); showTrack(data.track); }
+      catch (error) { if (error.message === 'Unauthorized') connection('🔴 Проверь токен'); }
+      finally { trackBusy = false; }
+    }
+    async function updateStatus() {
+      if (statusBusy) return;
+      statusBusy = true;
+      try {
+        const data = await api('/status');
+        document.getElementById('cpu').textContent = `${data.cpu}%`;
+        document.getElementById('ram').textContent = `${data.ram}%`;
+        document.getElementById('ram_used').textContent = `${data.ram_used} GB`;
+        if (document.activeElement !== document.getElementById('volumeSlider')) {
+          document.getElementById('volumeSlider').value = data.volume; showVolume(data.volume);
+        }
+        showTrack(data.track); connection('🟢 ПК подключён');
+      } catch (error) { connection(error.message === 'Unauthorized' ? '🔴 Неверный токен' : '🔴 Нет соединения'); }
+      finally { statusBusy = false; }
+    }
+    updateStatus(); setInterval(updateStatus, 2000); setInterval(refreshTrack, 1500);
+  </script>
+</body>
+</html>
